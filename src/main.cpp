@@ -9,8 +9,7 @@ int main(int argc, char *argv[]){
 
     if (argc < 3)
     {
-        std::cerr << "Usage: " << argv[0]
-                  << " <input_pdf> <output_dir>\n";
+        std::cerr << "Usage: " << argv[0] << " <input_pdf> <output_dir>\n";
         return 1;
     }
 

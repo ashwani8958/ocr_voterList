@@ -32,7 +32,8 @@ void ExtractImage::validateInput( const std::string& pdfPath, const std::string&
 }
 
 std::vector<PageImage> ExtractImage::convert(const std::string& pdfPath, const std::string& outputDir){
-   validateInput(pdfPath, outputDir);
+   
+    validateInput(pdfPath, outputDir);
 
     // Load PDF document
     std::unique_ptr<poppler::document> doc(
@@ -43,13 +44,15 @@ std::vector<PageImage> ExtractImage::convert(const std::string& pdfPath, const s
         throw std::runtime_error("Failed to load PDF document");
 
     int pageCount = doc->pages();
-    if (pageCount <= 0)
+
+    if (pageCount <= 0){
         throw std::runtime_error("PDF has no pages");
+    }
 
     std::vector<PageImage> results;
     results.reserve(pageCount);
 
-    // Renderer (IMPORTANT: rendering is done via page_renderer)
+    // Renderer
     poppler::page_renderer renderer;
     renderer.set_render_hint(poppler::page_renderer::antialiasing, true);
     renderer.set_render_hint(poppler::page_renderer::text_antialiasing, true);
@@ -57,25 +60,25 @@ std::vector<PageImage> ExtractImage::convert(const std::string& pdfPath, const s
     for (int pageIndex = 0; pageIndex < pageCount; ++pageIndex)
     {
         std::unique_ptr<poppler::page> page(doc->create_page(pageIndex));
-        if (!page)
+        if (!page){
             continue; // skip broken page safely
+        }
 
         // Render page → image
-        poppler::image img =
-            renderer.render_page(page.get(), m_dpi, m_dpi);
+        poppler::image img = renderer.render_page(page.get(), m_dpi, m_dpi);
 
-        if (!img.is_valid())
+        if (!img.is_valid()){
             continue;
+        }
 
         // Create output filename
         std::ostringstream filePath;
-        filePath << outputDir << "/page_"
-                 << std::setw(4) << std::setfill('0')
-                 << pageIndex << ".png";
+        filePath << outputDir << "page_" << std::setw(4) << std::setfill('0') << pageIndex << ".png";
 
         // Save image
-        if (!img.save(filePath.str(), "png"))
+        if (!img.save(filePath.str(), "png")){
             throw std::runtime_error("Failed to save image: " + filePath.str());
+        }
 
         // Collect metadata
         PageImage pageImage;
