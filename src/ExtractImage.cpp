@@ -21,7 +21,7 @@ ExtractImage::ExtractImage(int dpi)
     }
 }
 
-void ExtractImage::validateInput( const std::string& pdfPath, const std::string& outputDir) const{
+void ExtractImage::validatePaths( const std::string& pdfPath, const std::string& outputDir) const{
     if (!fs::exists(pdfPath)){
         throw std::runtime_error("PDF file does not exist");
     }
@@ -33,12 +33,10 @@ void ExtractImage::validateInput( const std::string& pdfPath, const std::string&
 
 std::vector<PageImage> ExtractImage::convert(const std::string& pdfPath, const std::string& outputDir){
    
-    validateInput(pdfPath, outputDir);
+    validatePaths(pdfPath, outputDir);
 
     // Load PDF document
-    std::unique_ptr<poppler::document> doc(
-        poppler::document::load_from_file(pdfPath)
-    );
+    std::unique_ptr<poppler::document> doc ( poppler::document::load_from_file(pdfPath) );
 
     if (!doc)
         throw std::runtime_error("Failed to load PDF document");

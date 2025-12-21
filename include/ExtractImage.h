@@ -17,5 +17,5 @@ public:
 
 private:
     int m_dpi;
-    void validateInput(const std::string& pdfPath, const std::string& outputDir) const;
+    void validatePaths(const std::string& pdfPath, const std::string& outputDir) const;
 };

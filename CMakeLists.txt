@@ -35,6 +35,7 @@ include_directories(
 set(SOURCES 
     src/main.cpp
     src/ExtractImage.cpp
+    src/ImagePreprocessing.cpp
 )
 
 add_executable(voterList ${SOURCES})
