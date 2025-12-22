@@ -73,7 +73,7 @@ void ImagePreprocessing::preprocess(const std::string & rawFilePath, const std::
         }
 
         image = removeNoiseAndBackground(image);
-        image = improveTextContrast(image);
+        // image = improveTextContrast(image);
         image = normalizeOrientationAndScale(image);
         image = separateTextFromNonText(image);
 
@@ -167,9 +167,9 @@ cv::Mat ImagePreprocessing::improveTextContrast(const cv::Mat& inputImage)
         binary,
         255,
         cv::ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv::THRESH_BINARY,
-        31,   // block size (must be odd)
-        10    // constant subtracted from mean
+        cv::THRESH_BINARY_INV,
+        21,                     
+        5                       
     );
 
     return binary;
@@ -192,47 +192,76 @@ cv::Mat ImagePreprocessing::improveTextContrast(const cv::Mat& inputImage)
  */
 cv::Mat ImagePreprocessing::normalizeOrientationAndScale(const cv::Mat& inputImage)
 {
-    cv::Mat inverted;
-    cv::bitwise_not(inputImage, inverted);
+    // Step 1: Edge detection
+    cv::Mat edges;
+    cv::Canny(inputImage, edges, 50, 150, 3);
 
-    // 1. Find all non-zero points (text pixels)
-    std::vector<cv::Point> points;
-    cv::findNonZero(inverted, points);
+    // Step 2: Detect lines
+    std::vector<cv::Vec4i> lines;
+    cv::HoughLinesP(
+        edges,
+        lines,
+        1,
+        CV_PI / 180,
+        150,       // threshold
+        100,       // min line length
+        10         // max line gap
+    );
 
-    // If no text detected, return original
-    if (points.empty()) {
+    // Step 3: Collect angles of near-horizontal lines
+    std::vector<double> angles;
+    for (const auto& l : lines) {
+        double dx = l[2] - l[0];
+        double dy = l[3] - l[1];
+
+        if (dx == 0) continue;
+
+        double angle = std::atan2(dy, dx) * 180.0 / CV_PI;
+
+        // Consider only near-horizontal lines
+        if (std::abs(angle) < 30.0) {
+            angles.push_back(angle);
+        }
+    }
+
+    // Step 4: If no reliable angle found, skip deskew
+    if (angles.empty()) {
         return inputImage.clone();
     }
 
-    // 2. Compute minimum area bounding box
-    cv::RotatedRect box = cv::minAreaRect(points);
+    // Step 5: Use median angle (robust against noise)
+    std::nth_element(
+        angles.begin(),
+        angles.begin() + angles.size() / 2,
+        angles.end()
+    );
+    double medianAngle = angles[angles.size() / 2];
 
-    double angle = box.angle;
-
-    // minAreaRect angle correction
-    if (angle < -45.0) {
-        angle += 90.0;
-    }
-
-    // 3. Rotate image to deskew
-    cv::Mat rotated;
+    // Step 6: Rotate image WITHOUT clipping
     cv::Point2f center(inputImage.cols / 2.0f, inputImage.rows / 2.0f);
+    cv::Mat rotMat = cv::getRotationMatrix2D(center, medianAngle, 1.0);
 
-    cv::Mat rotationMatrix =
-        cv::getRotationMatrix2D(center, angle, 1.0);
+    cv::Rect bbox = cv::RotatedRect(
+        center,
+        inputImage.size(),
+        medianAngle
+    ).boundingRect();
 
+    rotMat.at<double>(0, 2) += bbox.width / 2.0 - center.x;
+    rotMat.at<double>(1, 2) += bbox.height / 2.0 - center.y;
+
+    cv::Mat rotated;
     cv::warpAffine(
         inputImage,
         rotated,
-        rotationMatrix,
-        inputImage.size(),
+        rotMat,
+        bbox.size(),
         cv::INTER_CUBIC,
         cv::BORDER_REPLICATE
     );
 
-    // 4. Scale normalization (optional but recommended)
-    // Target: character height roughly OCR-friendly
-    const int targetWidth = 2480;  // ~A4 at 300 DPI
+    // Step 7: Scale normalization (OCR-friendly)
+    const int targetWidth = 2480;  // ~A4 @300 DPI
     if (rotated.cols < targetWidth) {
         double scale = static_cast<double>(targetWidth) / rotated.cols;
         cv::resize(rotated, rotated, cv::Size(), scale, scale, cv::INTER_CUBIC);
