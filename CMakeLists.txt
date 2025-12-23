@@ -17,6 +17,7 @@ set(CMAKE_BUILD_TYPE Debug)
 # -----------------------------
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(POPPLER_CPP REQUIRED poppler-cpp)
+pkg_check_modules(TESSERACT REQUIRED tesseract)
 
 # -----------------------------
 # Find OpenCV
@@ -29,6 +30,7 @@ find_package(OpenCV REQUIRED)
 include_directories(
     ${POPPLER_CPP_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
+    ${TESSERACT_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/include
 )
 
@@ -36,6 +38,7 @@ set(SOURCES
     src/main.cpp
     src/ExtractImage.cpp
     src/ImagePreprocessing.cpp
+    src/RowOCR.cpp
 )
 
 add_executable(voterList ${SOURCES})
@@ -46,6 +49,7 @@ add_executable(voterList ${SOURCES})
 target_link_libraries(voterList
     ${POPPLER_CPP_LIBRARIES}
     ${OpenCV_LIBS}
+    ${TESSERACT_LIBRARIES}
 )
 
 # -----------------------------
